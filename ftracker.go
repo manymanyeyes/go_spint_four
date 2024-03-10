@@ -7,7 +7,7 @@ import (
 
 // Основные константы, необходимые для расчетов.
 const (
-	lenStep   = 0.65  // средняя длина шага в метрах.
+	lenStep   = 0.65  // средняя длина шага.
 	mInKm     = 1000  // количество метров в километре.
 	minInH    = 60    // количество минут в часе.
 	kmhInMsec = 0.278 // коэффициент для преобразования км/ч в м/с.
@@ -28,12 +28,12 @@ func distance(action int) float64 {
 // Параметры:
 //
 // action int — количество совершенных действий(число шагов при ходьбе и беге, либо гребков при плавании).
-// distance float64 - дистанция пройденная в километрах.
 // duration float64 — длительность тренировки в часах.
-func meanSpeed(action int, distance, duration float64) float64 {
+func meanSpeed(action int, duration float64) float64 {
 	if duration == 0 {
 		return 0
 	}
+	distance := distance(action)
 	return distance / duration
 }
 
@@ -45,23 +45,25 @@ func meanSpeed(action int, distance, duration float64) float64 {
 // trainingType string — вид тренировки(Бег, Ходьба, Плавание).
 // duration float64 — длительность тренировки в часах.
 func ShowTrainingInfo(action int, trainingType string, duration, weight, height float64, lengthPool, countPool int) string {
-	distance := distance(action)
-	var speed float64
-	var calories float64
 	switch {
 	case trainingType == "Бег":
-		speed = meanSpeed(action, distance, duration)
-		calories = RunningSpentCalories(speed, duration, weight)
+		distance := distance(action)
+		speed := meanSpeed(action, duration)
+		calories := RunningSpentCalories(action, weight, duration)
+		return fmt.Sprintf("Тип тренировки: %s\nДлительность: %.2f ч.\nДистанция: %.2f км.\nСкорость: %.2f км/ч\nСожгли калорий: %.2f\n", trainingType, duration, distance, speed, calories)
 	case trainingType == "Ходьба":
-		speed = meanSpeed(action, distance, duration)
-		calories = WalkingSpentCalories(speed, duration, weight, height)
+		distance := distance(action)
+		speed := meanSpeed(action, duration)
+		calories := WalkingSpentCalories(action, duration, weight, height)
+		return fmt.Sprintf("Тип тренировки: %s\nДлительность: %.2f ч.\nДистанция: %.2f км.\nСкорость: %.2f км/ч\nСожгли калорий: %.2f\n", trainingType, duration, distance, speed, calories)
 	case trainingType == "Плавание":
-		speed = swimmingMeanSpeed(lengthPool, countPool, duration)
-		calories = SwimmingSpentCalories(speed, duration, weight)
+		distance := distance(action)
+		speed := swimmingMeanSpeed(lengthPool, countPool, duration)
+		calories := SwimmingSpentCalories(lengthPool, countPool, duration, weight)
+		return fmt.Sprintf("Тип тренировки: %s\nДлительность: %.2f ч.\nДистанция: %.2f км.\nСкорость: %.2f км/ч\nСожгли калорий: %.2f\n", trainingType, duration, distance, speed, calories)
 	default:
 		return "неизвестный тип тренировки"
 	}
-	return fmt.Sprintf("Тип тренировки: %s\nДлительность: %.2f ч.\nДистанция: %.2f км.\nСкорость: %.2f км/ч\nСожгли калорий: %.2f\n", trainingType, duration, distance, speed, calories)
 }
 
 // Константы для расчета калорий, расходуемых при беге.
@@ -74,10 +76,11 @@ const (
 //
 // Параметры:
 //
-// speed float64 — средняя скорость движения при беге в км/ч.
-// duration float64 — длительность тренировки в часах.
+// action int — количество совершенных действий(число шагов при ходьбе и беге, либо гребков при плавании).
 // weight float64 — вес пользователя.
-func RunningSpentCalories(speed, duration, weight float64) float64 {
+// duration float64 — длительность тренировки в часах.
+func RunningSpentCalories(action int, weight, duration float64) float64 {
+	speed := meanSpeed(action, duration)
 	return ((runningCaloriesMeanSpeedMultiplier * speed * runningCaloriesMeanSpeedShift) * weight / mInKm * duration * minInH)
 }
 
@@ -91,11 +94,12 @@ const (
 //
 // Параметры:
 //
-// speed float64 — средняя скорость движения при ходьбе в км/ч.
+// action int — количество совершенных действий(число шагов при ходьбе и беге, либо гребков при плавании).
 // duration float64 — длительность тренировки в часах.
-// weight float64 — вес пользователя в килограммах.
-// height float64 — рост пользователя в сантиметрах.
-func WalkingSpentCalories(speed, duration, weight, height float64) float64 {
+// weight float64 — вес пользователя.
+// height float64 — рост пользователя.
+func WalkingSpentCalories(action int, duration, weight, height float64) float64 {
+	speed := meanSpeed(action, duration)
 	return ((walkingCaloriesWeightMultiplier*weight + (math.Pow(speed/kmhInMsec, 2)/height)*walkingSpeedHeightMultiplier) * duration * minInH)
 }
 
@@ -123,9 +127,11 @@ func swimmingMeanSpeed(lengthPool, countPool int, duration float64) float64 {
 //
 // Параметры:
 //
-// speed float64 — средняя скорость движения при плавании в км/ч.
+// lengthPool int — длина бассейна в метрах.
+// countPool int — сколько раз пользователь переплыл бассейн.
 // duration float64 — длительность тренировки в часах.
-// weight float64 — вес пользователя в килограммах.
-func SwimmingSpentCalories(speed, duration, weight float64) float64 {
+// weight float64 — вес пользователя.
+func SwimmingSpentCalories(lengthPool, countPool int, duration, weight float64) float64 {
+	speed := swimmingMeanSpeed(lengthPool, countPool, duration)
 	return (speed + swimmingCaloriesMeanSpeedShift) * swimmingCaloriesWeightMultiplier * weight * duration
 }
